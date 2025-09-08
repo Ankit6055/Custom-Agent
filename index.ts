@@ -1,9 +1,15 @@
 import { stat } from "node:fs";
 import readline from "node:readline/promises";
-import { StateGraph, MessagesAnnotation } from "@langchain/langgraph";
+import {
+  StateGraph,
+  MessagesAnnotation,
+  MemorySaver,
+} from "@langchain/langgraph";
 import { ChatGroq } from "@langchain/groq";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { TavilySearch } from "@langchain/tavily";
+
+const checkpointer = new MemorySaver();
 
 const tool = new TavilySearch({
   maxResults: 5,
@@ -19,7 +25,7 @@ const tool = new TavilySearch({
 });
 
 // Initialise the tool node
-const tools: any = [];
+const tools: any = [tool];
 const toolNode = new ToolNode(tools);
 
 /*
@@ -30,11 +36,11 @@ const toolNode = new ToolNode(tools);
 
 // Initialise the LLM
 const llm = new ChatGroq({
-  model: "openai/gpt-oss-120b",
+  model: "openai/gpt-oss-20b",
   temperature: 0,
   maxRetries: 2,
   // other params...
-});
+}).bindTools(tools);
 
 async function callModel(state: typeof MessagesAnnotation.State) {
   // call the LLMs using APIs
@@ -48,8 +54,11 @@ async function callModel(state: typeof MessagesAnnotation.State) {
 function shouldContinue(state: any) {
   // put your condition
   // whether to call a tool or end
-
-  console.log("state", state);
+  const lastMessage = state.messages[state.messages.length - 1];
+  //   console.log("State", state)
+  if (lastMessage.tool_calls.length > 0) {
+    return "tools";
+  }
   return "__end__";
 }
 
@@ -58,11 +67,11 @@ const workFlow = new StateGraph(MessagesAnnotation)
   .addNode("agent", callModel)
   .addNode("tools", toolNode)
   .addEdge("__start__", "agent")
-  .addEdge("agent", "__end__")
+  .addEdge("tools", "agent")
   .addConditionalEdges("agent", shouldContinue);
 
 // Compile the graph
-const app = workFlow.compile();
+const app = workFlow.compile({ checkpointer });
 
 async function main() {
   const rl = readline.createInterface({
@@ -76,9 +85,12 @@ async function main() {
     if (userInput === "/bye") break;
 
     // Invoke the graph
-    const finalState = await app.invoke({
-      messages: [{ role: "user", content: userInput }],
-    });
+    const finalState = await app.invoke(
+      {
+        messages: [{ role: "user", content: userInput }],
+      },
+      { configurable: { thread_id: "1" } }
+    );
     const lastMessage = finalState.messages[finalState.messages.length - 1];
     console.log("AI: ", lastMessage?.content);
   }
