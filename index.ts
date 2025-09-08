@@ -6,8 +6,12 @@ async function main() {
     output: process.stdout,
   });
 
-  const userInput = await rl.question("You: ");
-  console.log("You said:",userInput);
+  while (true) {
+    const userInput = await rl.question("You: ");
+
+    if (userInput === "/bye") break;
+    console.log("You said:", userInput);
+  }
 
   rl.close();
 }
