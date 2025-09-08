@@ -1,6 +1,7 @@
 import { stat } from "node:fs";
 import readline from "node:readline/promises";
 import { StateGraph, MessagesAnnotation } from "@langchain/langgraph";
+import { ChatGroq } from "@langchain/groq";
 
 /*
 1. Define node function
@@ -8,8 +9,17 @@ import { StateGraph, MessagesAnnotation } from "@langchain/langgraph";
 3. Compile and invoke the graph
 */
 
+// Initialise the LLM
+const llm = new ChatGroq({
+  model: "openai/gpt-oss-120b",
+  temperature: 0,
+  maxRetries: 2,
+  // other params...
+});
+
 function callModel(state: typeof MessagesAnnotation.State) {
   // call the LLMs using APIs
+  console.log("Calling LLM...")
   return state;
 }
 
