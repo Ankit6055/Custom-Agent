@@ -17,10 +17,13 @@ const llm = new ChatGroq({
   // other params...
 });
 
-function callModel(state: typeof MessagesAnnotation.State) {
+async function callModel(state: typeof MessagesAnnotation.State) {
   // call the LLMs using APIs
   console.log("Calling LLM...")
-  return state;
+  const response = await llm.invoke(state.messages);
+
+  // We return a list, because this will get added to the existing list
+  return { messages: [response] };
 }
 
 // Build the graph
@@ -47,8 +50,8 @@ async function main() {
     const finalState = await app.invoke({
       messages: [{ role: "user", content: userInput }],
     });
-
-    console.log("Final: ", finalState);
+    const lastMessage = finalState.messages[finalState.messages.length - 1];
+    console.log("AI: ", lastMessage?.content);
   }
 
   rl.close();
